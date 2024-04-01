@@ -41,6 +41,7 @@ CREATE TABLE users (
     updated_at TIMESTAMP
 );
 
+
 CREATE TABLE articles (
     id INT DEFAULT NEXTVAL('articles_sequence') PRIMARY KEY,
     title VARCHAR(255) NOT NULL,

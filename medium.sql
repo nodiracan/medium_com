@@ -98,6 +98,60 @@ CREATE TABLE likes (
     FOREIGN KEY (articleid) REFERENCES articles(id)
 );
 
+------------------------------------- User function ------------------------------------------
+
+create function auth_register(dataparam text) returns integer
+    language plpgsql
+as
+$$
+DECLARE
+    newInt   INTEGER;
+    datajson JSON;
+    r_user   RECORD;
+    dto      medium_com.dto.user_register_dto;
+BEGIN
+    IF dataparam IS NULL OR dataparam = '{}' THEN
+        RAISE EXCEPTION 'Dataparam is not valid';
+    END IF;
+
+    datajson := dataparam::JSON;
+    dto.username := datajson ->> 'username';
+    dto.password := datajson ->> 'password';
+    dto.email := datajson ->> 'email';
+    dto.picture_id := datajson ->> 'picture_id';
+    dto.bio := datajson ->> 'bio';
+
+    CALL medium_com.helper.check_null_or_blank(dto.username, 'Username is invalid');
+
+    SELECT INTO r_user *
+    FROM users t
+    WHERE t.username = lower(dto.username);
+
+    IF FOUND THEN
+        RAISE EXCEPTION 'This user already exists';
+    END IF;
+
+    CALL medium_com.helper.check_null_or_blank(dto.password, 'Password is invalid');
+    CALL medium_com.helper.check_null_or_blank(dto.email, 'Email is invalid');
+
+    IF dto.email !~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$' THEN
+        RAISE EXCEPTION 'Email should contain "@" symbol';
+    END IF;
+
+    CALL medium_com.helper.check_null_or_blank(dto.bio, 'Bio is invalid');
+    CALL medium_com.helper.check_null_or_blank(dto.picture_id, 'Invalid Picture');
+
+    INSERT INTO users (username, email, password, picture_id, bio)
+    VALUES (dto.username, dto.email, helper.encode_password(dto.password), dto.picture_id, dto.bio)
+    RETURNING id INTO newInt;
+
+    RETURN newInt;
+END
+$$;
+
+alter function auth_register(text) owner to postgres;
+
+
 
 
 

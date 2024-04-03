@@ -207,7 +207,39 @@ BEGIN
 END
 $$;
 
-alter function auth_register(text) owner to postgres;
+create function public.auth_login(uname varchar default null::varchar, pswd varchar default null::varchar) returns text
+    language plpgsql
+as
+
+$$
+declare
+    r_record record;
+begin
+    call medium_com.helper.check_null_or_blank(uname, 'Please enter valid username');
+    call medium_com.helper.check_null_or_blank(pswd, 'Please enter valid password');
+
+    select * into r_record from users t where t.username = uname;
+
+    if not FOUND then
+        raise exception using message = 'Bad credentials',
+            detail = concat_ws(' ', 'Username', uname, 'already taken');
+    end if;
+
+    if helper.match_password(pswd, r_record.password) is false then
+        raise exception 'Bad credentials';
+    end if;
+
+
+    return json_build_object(
+                'id', r_record.id,
+                'username' , r_record.username,
+                'email', r_record.email,
+                'picture_id', r_record.picture_id,
+                'bio', r_record.bio
+           )::text;
+
+end
+$$;
 
 
 

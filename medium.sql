@@ -97,6 +97,64 @@ CREATE TABLE likes (
     FOREIGN KEY (userid) REFERENCES users(id),
     FOREIGN KEY (articleid) REFERENCES articles(id)
 );
+-------------------------------------- Create Schemas ---------------------------------------
+
+create schema utils;
+create schema dto;
+create schema helper;
+
+
+
+------------------------------------- DTO Types --------------------------------------------
+
+create type user_register_dto as
+(
+    username   varchar,
+    email      varchar,
+    password   varchar,
+    picture_id varchar,
+    bio        text
+);
+
+------------------------------------- Helper functions ---------------------------------------
+
+create procedure helper.check_null_or_blank(IN param character varying, IN message character varying DEFAULT NULL::character varying)
+    language plpgsql
+as
+$$
+begin
+    if param is null or trim(param) = '' then
+        raise '%', coalesce(message, concat('Invalid input', param));
+    end if;
+end;
+$$;
+
+
+create function helper.encode_password(rawpassword character varying) returns character varying
+    language plpgsql
+as
+$$
+begin
+    if rawPassword is null then
+        raise exception 'Invalid Password null';
+    end if;
+    return utils.crypt(rawPassword, utils.gen_salt('bf', 4));
+end
+$$;
+
+create function helper.match_password(pswd character varying, r_pswd character varying) returns bool
+    language plpgsql
+as
+$$
+begin
+    return r_pswd = utils.crypt(pswd, r_pswd);
+end
+$$;
+
+
+------------------------------------- Utils ------------------------------------------------
+
+create extension if not exists pgcrypto with schema utils;
 
 ------------------------------------- User function ------------------------------------------
 

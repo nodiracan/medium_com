@@ -37,6 +37,7 @@ CREATE TABLE users (
     password VARCHAR(100) NOT NULL,
     picture_id VARCHAR(255),
     bio TEXT,
+    role user_role default 'user',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP
 );
@@ -97,6 +98,11 @@ CREATE TABLE likes (
     FOREIGN KEY (userid) REFERENCES users(id),
     FOREIGN KEY (articleid) REFERENCES articles(id)
 );
+
+--------------------------------------- ENUM types ----------------------------------------
+    -------------------------------------ENUM types ----------------------------
+create type public.user_role as enum ('admin', 'user');
+
 -------------------------------------- Create Schemas ---------------------------------------
 
 create schema utils;
@@ -152,6 +158,29 @@ end
 $$;
 
 
+CREATE function helper.cryptpassword() returns trigger
+    language plpgsql
+as
+$$
+begin
+        if tg_op = 'INSERT'  OR new.password <> old.password then
+            new.password = utils.crypt(new.password, utils.gen_salt('bf', 4));
+        end if;
+
+        return new;
+
+end;
+$$;
+
+
+create trigger cryptpassword
+    before insert or update
+    on public.users
+    for each row
+execute function helper.cryptpassword();
+
+
+
 ------------------------------------- Utils ------------------------------------------------
 
 create extension if not exists pgcrypto with schema utils;
@@ -200,7 +229,10 @@ BEGIN
     CALL medium_com.helper.check_null_or_blank(dto.picture_id, 'Invalid Picture');
 
     INSERT INTO users (username, email, password, picture_id, bio)
-    VALUES (dto.username, dto.email, helper.encode_password(dto.password), dto.picture_id, dto.bio)
+    VALUES (dto.username, dto.email,
+           -- helper.encode_password(dto.password),
+        dto.password,
+            dto.picture_id, dto.bio)
     RETURNING id INTO newInt;
 
     RETURN newInt;
